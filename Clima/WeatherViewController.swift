@@ -36,6 +36,7 @@ class WeatherViewController: UIViewController, CLLocationManagerDelegate {
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         locationManager.requestWhenInUseAuthorization()
         locationManager.delegate = self
+        locationManager.startUpdatingLocation()
 
         scroll.addSubview(refreshControll)
         refreshControll.addTarget(self,
@@ -80,9 +81,6 @@ class WeatherViewController: UIViewController, CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         let location = locations[locations.count - 1]
         if location.horizontalAccuracy > 0 {
-
-            locationManager.stopUpdatingLocation()
-
             let latitude = String(location.coordinate.latitude)
             let longitude = String(location.coordinate.longitude)
             let params : [String : String] = ["lat" : latitude, "lon" : longitude, "appid" : APP_ID]
