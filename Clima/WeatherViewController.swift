@@ -12,7 +12,7 @@ import CoreLocation
 import Alamofire
 import SwiftyJSON
 
-class WeatherViewController: UIViewController, CLLocationManagerDelegate {
+class WeatherViewController: UIViewController {
     
     //Constants
     let WEATHER_URL = "http://api.openweathermap.org/data/2.5/weather"
@@ -21,6 +21,8 @@ class WeatherViewController: UIViewController, CLLocationManagerDelegate {
     //TODO: Declare instance variables here
     let locationManager = CLLocationManager()
     let weatherDataModel = WeatherDataModel()
+    
+    var locationUpdatesAreAvailable = false
 
 
     //Pre-linked IBOutlets
@@ -34,14 +36,10 @@ class WeatherViewController: UIViewController, CLLocationManagerDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-        locationManager.requestWhenInUseAuthorization()
         locationManager.delegate = self
-        locationManager.startUpdatingLocation()
-
-        scroll.addSubview(refreshControll)
-        refreshControll.addTarget(self,
-                                  action: #selector(didPullToRefresh(sender:)),
-                                  for: .valueChanged)
+        locationManager.requestWhenInUseAuthorization()
+        
+        addObservers()
     }
 
     @objc private func didPullToRefresh(sender: Any) {
@@ -77,8 +75,30 @@ class WeatherViewController: UIViewController, CLLocationManagerDelegate {
         temperatureLabel.text = "\(weatherDataModel.temperature)"
         weatherIcon.image = UIImage(named: weatherDataModel.weatherIconName)
     }
+}
 
+extension WeatherViewController: CLLocationManagerDelegate {
+    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        let grantedStatuses: [CLAuthorizationStatus] = [
+            .authorizedAlways,
+            .authorizedWhenInUse,
+        ]
+        if grantedStatuses.contains(status) {
+            locationUpdatesAreAvailable = true
+            locationManager.startUpdatingLocation()
+            
+            scroll.addSubview(refreshControll)
+            refreshControll.addTarget(
+                self,
+                action: #selector(didPullToRefresh(sender:)),
+                for: .valueChanged)
+        } else {
+            cityLabel.text = "Location Unavailable"
+        }
+    }
+    
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        debugPrint("Location updated!")
         let location = locations[locations.count - 1]
         if location.horizontalAccuracy > 0 {
             let latitude = String(location.coordinate.latitude)
@@ -95,4 +115,25 @@ class WeatherViewController: UIViewController, CLLocationManagerDelegate {
     }
 }
 
+@objc extension WeatherViewController {
+    @nonobjc func addObservers() {
+        let notificationCenter = NotificationCenter.default
+        notificationCenter.addObserver(self, selector: #selector(appDidEnterBackground), name: NSNotification.Name.UIApplicationDidEnterBackground, object: nil)
+        notificationCenter.addObserver(self, selector: #selector(appWillEnterForeground), name: NSNotification.Name.UIApplicationWillEnterForeground, object: nil)
 
+    }
+    
+    func appDidEnterBackground() {
+        if locationUpdatesAreAvailable {
+            locationManager.stopUpdatingLocation()
+        }
+        debugPrint("App moved to background!")
+    }
+    
+    func appWillEnterForeground() {
+        if locationUpdatesAreAvailable {
+            locationManager.startUpdatingLocation()
+        }
+        debugPrint("App moved to foreground!")
+    }
+}
